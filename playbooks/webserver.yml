@@ -2,17 +2,22 @@
 - hosts: webserver
   become: true
   tasks:
-  - name: install apache2
-    apt: name={{item}} state=present update_cache=yes
-    with_items:
-     - apache2
-     - libapache2-mod-wsgi
-     - python-pip
-     - python-virtualenv
-     - nano
+    - name: install apache2
+      apt: name={{item}} state=present update_cache=yes
+      with_items:
+        - apache2
+        - libapache2-mod-wsgi
+        - python-pip
+        - python-virtualenv
+        - nano
 
-  - name: start_service
-    service: 
-     name=apache2
-     state=started
-     enabled=yes  
+    - name: start_service
+      service: name=apache2 state=started  enabled=yes
+
+    - name: apache2_module
+      apache2_module: name=wsgi state=present
+      notify: restart apache2
+
+  handlers:
+    - name: restart apache2
+      service: name=apache2 state=restarted
