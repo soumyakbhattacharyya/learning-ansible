@@ -1,8 +1,11 @@
 ---
 - hosts: webserver
+  # become is the command to let ansible know that we want execution as sudo
   become: true
   tasks:
     - name: install apache2
+      # apt is another module. state ensures that the package is present while update_cache updates the cache
+      # also, {{item}} is the iterator which iterates over the list enumerated against with_items list
       apt: name={{item}} state=present update_cache=yes
       with_items:
         - apache2
@@ -12,10 +15,38 @@
         - nano
 
     - name: start_service
+      # service module ensures running/stopping etc. of a service. state signifies running state. enabled signifies if the service is going
+      # to start on machine boot
       service: name=apache2 state=started  enabled=yes
 
     - name: apache2_module
       apache2_module: name=wsgi state=present
+      # notify module asserts that after a given step completes
+      # few designated handlers are supposed to fire. notify notifies and handler handles.
+      notify: restart apache2
+
+    - name: copy app
+      # copy module copies a directory to a destination directory
+      # it is also possible asserting the mode of permission
+      copy: src=demo/app/ dest=/var/www/demo mode=0755
+      notify: restart apache2
+
+    - name: copy apache virtual host config
+      copy: src=demo/demo.conf dest=/etc/apache2/sites-available mode=0755
+      notify: restart apache2
+
+    - name: create virtual environment #this is something python specific
+      pip: requirements=/var/www/demo/requirements.txt virtualenv=/var/www/demo/.venv
+      notify: restart apache2
+
+      # in following step, file module is used to remove default site from inside /etc/apache2
+    - name: de-activate default apache site
+      file: path=/etc/apache2/sites-enabled/000-default.conf state=absent
+      notify: restart apache2
+
+      # in following step, a symlink is created inside site-enabled to point to demo.cnf
+    - name: activate demo apache site
+      file: src=/etc/apache2/sites-available/demo.conf dest=/etc/apache2/sites-enabled/demo.conf state=link
       notify: restart apache2
 
   handlers:
